@@ -1,0 +1,51 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load_packages_and_data}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(data.world)
+library(ggplot2)
+
+mlb_ds <- "https://data.world/dataquest/mlb-game-logs"
+
+query <- "SELECT * from game_logs where date > '2014-01-01'"
+
+test_q <- data.world::qry_sql(query)
+
+test_result <- data.world::query(test_q, dataset = mlb_ds)
+
+test_result
+```
+
+```{r longest_games}
+# compare al, nl, and inter-league
+game_lengths <- test_result %>%
+  select(date, v_name, v_league, h_name, h_league, length_minutes, length_outs) %>%
+  mutate(year = year(date),
+         league = case_when(v_league == "NL" & h_league == "NL" ~ "NL",
+           v_league == "AL" & h_league == "AL" ~ "AL",
+           v_league == "AL" & h_league == "NL" ~ "Interleague",
+           v_league == "NL" & h_league == "AL" ~ "Interleague")) 
+
+game_lengths %>%
+  filter(length_outs <= 54) %>% #just look at 9-inning games for now
+  ggplot(aes(x = league, y = length_minutes)) +
+  geom_violin() 
+
+```
+
+```{r lengths_by_hometeam}
+game_lengths %>%
+  ggplot(aes(x = h_name, y = length_minutes)) +
+  geom_violin() + 
+  coord_flip()
+```
+

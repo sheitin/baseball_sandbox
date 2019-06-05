@@ -16,11 +16,13 @@ library(ggplot2)
 
 mlb_ds <- "https://data.world/dataquest/mlb-game-logs"
 
-query <- "SELECT date, h_name, v_name, length_minutes, length_outs, h_pitchers_used, v_pitchers_used, h_league, v_league from game_logs where date > '2000-01-01'"
+query <- "SELECT date, h_name, v_name, length_minutes, length_outs, h_pitchers_used, v_pitchers_used, h_league, v_league, v_walks, h_walks, v_strikeouts, h_strikeouts, v_stolen_bases, h_stolen_bases, v_caught_stealing, h_caught_stealing from game_logs where date > '2000-01-01'"
 
 test_q <- data.world::qry_sql(query)
 
-yrly <- data.world::query(test_q, dataset = mlb_ds) %>%
+q_result <- data.world::query(test_q, dataset = mlb_ds) 
+
+yrly <- q_result %>%
   mutate(year = year(date)) %>%
   filter(length_outs >= 51) %>% # drop any games that were less than 8.5 innings
   mutate(min_per_out = length_minutes/length_outs,
@@ -29,7 +31,10 @@ yrly <- data.world::query(test_q, dataset = mlb_ds) %>%
          half_innings = length_outs/3,
          min_per_9_inn = length_minutes / per_9_inn,
          total_pitchers_used = h_pitchers_used + v_pitchers_used,
-         pitcher_changes_per_9_inn = (total_pitchers_used - 2)/per_9_inn) # normalize for number of half innings
+         pitcher_changes_per_9_inn = (total_pitchers_used - 2) / per_9_inn,
+         k_per_9 = (v_strikeouts + h_strikeouts) / per_9_inn,
+         bb_per_9 = (v_walks + h_walks) / per_9_inn,
+         steal_attempt_per_9 = (v_stolen_bases + h_stolen_bases + v_caught_stealing + h_caught_stealing) / per_9_inn) # normalize for number of half innings
 ```
 
 I don't see any real difference between AL, NL, and Interleague games when just looking at the length of the games overall.
@@ -47,8 +52,8 @@ game_lengths <- yrly %>%
 game_lengths %>%
   filter(length_outs <= 54) %>% #just look at 9-inning games for now
   ggplot(aes(x = year, y = length_minutes)) +
-  geom_violin(draw_quantiles = c(.5)) # show the median
-
+  geom_violin(draw_quantiles = c(.5)) + # show the median
+  labs(title = "Are there any obvious trends in game length?")
 ```
 Are games getting longer? Is there an overall trend? 
 We will look by number of half-innings in the game because we'll assume that the amount of time to switch sides is significant. Just counting the number of outs would obscure that.
@@ -58,12 +63,16 @@ yrly_summary <- yrly %>%
   filter(weird_num_outs == 0) %>%
   group_by(year) %>%
   summarize(mean_min_per_9_inn = mean(min_per_9_inn),
-            mean_pitcher_changes_per_9_inn = mean(pitcher_changes_per_9_inn) ) 
+            mean_pitcher_changes_per_9_inn = mean(pitcher_changes_per_9_inn),
+            mean_steal_attempt_per_9 = mean(steal_attempt_per_9),
+            mean_k_per_9 = mean(k_per_9),
+            mean_walks_per_9 = mean(bb_per_9)) 
 
 yrly_summary %>%
   ggplot(aes(x = year, y = mean_min_per_9_inn)) +
   geom_point() +
-  geom_smooth(method = "lm") 
+  geom_smooth(method = "lm") + 
+  labs(title = "Games are getting longer")
 ```
 
 finding: more pitchers are being used
@@ -71,9 +80,10 @@ finding: more pitchers are being used
 
 ```{r}
 yrly_summary %>%
-  ggplot(aes(x = year, y = mean_pitcher_changes_per_9_inn * 18)) +
+  ggplot(aes(x = year, y = mean_pitcher_changes_per_9_inn)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") +
+  labs(title = "There are more pitching changes per game")
 ```
 
 does this explain all the variation in game length? One thing we know is that not every pitching adds length to the game (only those that are within the inning. This dataset doesn't have that level of granularity). 
@@ -82,4 +92,32 @@ Other things to look at:
 
 
 Why did the year 2000 have the lowest number of pitcher changes, but it was 4th in min per 9 innings?
+
+```{r}
+yrly_summary %>%
+  ggplot(aes(x = year, y = mean_k_per_9)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "There are more strikeouts per game")
+```
+
+```{r}
+yrly_summary %>%
+  ggplot(aes(x = year, y = mean_walks_per_9)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "There are fewer walks per game")
+```
+
+```{r}
+yrly_summary %>%
+  ggplot(aes(x = year, y = mean_steal_attempt_per_9)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Not a clear trend for steals")
+```
+
+```{r}
+
+```
 

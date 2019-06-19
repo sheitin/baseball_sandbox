@@ -6,6 +6,15 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+I like baseball. It's a game of high skill and high drama - when you really watch it. Highlights of slick double plays and towering home runs are fun to watch, but if you just watch the highlights you lose the sense of just how rare and special those events are. The problem (my problem) is that I just don't have enough time to watch baseball. But, does anybody really? The median game-length in 2016 was ~175 minutes. That might be reasonable for a 16 game football season, but the baseball season is 10x as long! 
+
+And, games are getting longer. Why is that? Let's see if we can find out! 
+
+This analysis uses a dataset from [data.world] (https://data.world/dataquest/mlb-game-logs) which has summary stats for games from the 19th century through 2016. We will focus on the seasons from 2000 through 2016, during which time a few things happened:
+* The steroid era faded away
+* Teams started taking analytics more seriously 
+
+One resource I'm leaning on heavily is ["An Introduction to Statistical Learning"] (https://www-bcf.usc.edu/~gareth/ISL/ISLR%20First%20Printing.pdf)
 
 ```{r load_packages_and_data}
 library(readr)
@@ -37,7 +46,7 @@ yrly <- q_result %>%
          steal_attempt_per_9 = (v_stolen_bases + h_stolen_bases + v_caught_stealing + h_caught_stealing) / per_9_inn) # normalize for number of half innings
 ```
 
-I don't see any real difference between AL, NL, and Interleague games when just looking at the length of the games overall.
+I don't see any real difference between AL, NL, and Interleague games when just looking at the length of the games overall. Next, let's see the distribution of game lengths by year to see if there are any obvious trends over time.
 
 ```{r longest_games}
 # compare al, nl, and inter-league
@@ -58,6 +67,8 @@ game_lengths %>%
 Are games getting longer? Is there an overall trend? 
 We will look by number of half-innings in the game because we'll assume that the amount of time to switch sides is significant. Just counting the number of outs would obscure that.
 
+We will scale each game to get its 9-inning game pace. 
+
 ```{r}
 yrly_summary <- yrly %>%
   filter(weird_num_outs == 0) %>%
@@ -75,7 +86,8 @@ yrly_summary %>%
   labs(title = "Games are getting longer")
 ```
 
-finding: more pitchers are being used
+Let's look at a few factors individually that I think could be drivers for game length:  
+* Number of pitchers used: When pitchers are changed in the middle of an inning, that takes time because the new pitcher has to run allllllll the way in from the bullpen and then throw some warmup pitches. So, are more 
 
 
 ```{r}
@@ -117,7 +129,22 @@ yrly_summary %>%
   labs(title = "Not a clear trend for steals")
 ```
 
-```{r}
+multiple linear regression
 
+```{r}
+yrly
+
+# let's see what factors are driving the increase in game time
+linear_model <- lm(min_per_9_inn ~ pitcher_changes_per_9_inn + k_per_9 + bb_per_9, data = yrly)
+
+summary(linear_model)
+```
+
+Next time: what if we use a mixed effects model? 
+```{r}
+# how about a mixed effects model where the grouping is done by team?
+library(lmer4)
+
+#think I have to tidy the data to get for each team - first time through let's have be the team be the one on offense. Later, we might want to look at which team is on defense too.
 ```
 

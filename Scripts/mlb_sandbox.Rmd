@@ -15,11 +15,11 @@ I like baseball. It's a game of high skill and high drama - when you really watc
 
 And, games are getting longer. Why is that? Let's see if we can find out! 
 
-This analysis uses a dataset from [data.world] (https://data.world/dataquest/mlb-game-logs) which has summary stats for games from the 19th century through 2016. We will focus on the seasons from 2000 through 2016, during which time a few things happened:
+This analysis uses a dataset from [data.world](https://data.world/dataquest/mlb-game-logs) which has summary stats for games from the 19th century through 2016. We will focus on the seasons from 2000 through 2016, during which time a few things happened:
 * The steroid era faded away
 * Teams started taking analytics more seriously 
 
-One resource I'm leaning on heavily is ["An Introduction to Statistical Learning"] (https://www-bcf.usc.edu/~gareth/ISL/ISLR%20First%20Printing.pdf)
+One resource I'm leaning on heavily is ["An Introduction to Statistical Learning"](https://www-bcf.usc.edu/~gareth/ISL/ISLR%20First%20Printing.pdf)
 
 ```{r load_packages_and_data}
 library(readr)
@@ -121,9 +121,11 @@ Let's build a linear model to see if it can help us understand why games are get
 # let's see what factors are driving the increase in game time
 linear_model <- lm(min_per_9_inn ~ pitcher_changes_per_9_inn + k_per_9 + bb_per_9, data = yrly)
 
-summary(linear_model)
+broom::glance(linear_model)
 ```
 The F statistic is very high, so we can be pretty sure that at least one of these variables (pitcher changes, strikeouts, and walks) can explain some of the variation in game length. Yay!
+
+The adjusted R squared seems a little low.
 
 Now, are the explanatory variables correlated?
 The explanatory variables all have correlation coefficients below .5 so it seems safe to keep them all.
@@ -133,18 +135,29 @@ model_variables <- yrly %>% select(min_per_9_inn, pitcher_changes_per_9_inn, k_p
 chart.Correlation(model_variables, histogram=TRUE, pch=19)
 ```
 
-Let's look at the residuals. Yikes! Heteroscedasticity!
+Let's look at the residuals to check some potential problems (see section 3.3.3 of ISLR):  
+* Non-Linearity of the response-predictor relationship
+* Correlation of error terms  
+* Non-constant variance terms  
+* Outliers  
+* High-leverage points  
+* Collinearity  
+I don't see any outliers, which would be points where the model predicts something very different than what was observed (i.e., absolute value of the residual is high).
 ```{r residuals}
-resid <- resid(linear_model)
+augment_model <- broom::augment(linear_model, data = yrly)
 
-plot(yrly$min_per_9_inn, resid) + abline(0,0)
+augment_model %>%
+  ggplot() +
+  geom_point(aes(x = .fitted, y = .resid), alpha = .2)
 
 ```
 
 
+Question:
+looks like walks are going down year over year, but our model that they are correlated with our response variable at .54. Are those two things consistent?
 
-Next time: use tidy models!
-I want to make it easier to be sure I'm plotting the residuals correctly. 
+Next time:
+should we be scaling our data better? Check out the Recipes package.
 
 
 Next time: what if we use a mixed effects model? 
